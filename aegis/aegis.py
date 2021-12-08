@@ -221,6 +221,8 @@ def _make(
                 src[:data_mod] = data[i:i + data_mod]
                 yield state.enc(src)[:data_mod]
             yield state.mac(ad_len, data_len)
+            data.release()
+            ad.release()
 
         @staticmethod
         def iter_decrypt(
@@ -265,9 +267,10 @@ def _make(
                 blocks[0] ^= AesBlock.from_bytes(dst[:16])
                 if size == 32:
                     blocks[4] ^= AesBlock.from_bytes(dst[16:])
-            tag = data[-tag_length_:]
-            computed_tag = state.mac(ad_len, data_len)
-            if not hmac.compare_digest(tag, computed_tag):
+            result = hmac.compare_digest(data[-tag_length_:], state.mac(ad_len, data_len))
+            data.release()
+            ad.release()
+            if not result:
                 raise AuthenticationFailed('invalid tag')
 
         @staticmethod
